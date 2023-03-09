@@ -1,0 +1,265 @@
+---
+title: "TP3 Pokémon - ACM"
+output: html_notebook
+---
+
+Analyse des Correspondances Multiples.
+
+Ce document est le TD no. 3 du module Analyse exploratoire. Il reprend rapidement des éléments du cours et propose une mise en pratique interactive de l’ACM.
+Ce TD est issu de l’ouvrage « Modélisation statistique par la pratique avec R », F. Bertrand, E. Claeys, M. Maumy-Bertrand, Dunod, octobre 2019.
+
+------------------------------------------------------------------------------------------------------------------------------------------------
+Pour rappel :
+=> ACP : liaison/corrélation entre variables quantitatives et donc réduction de dimension/variables
+=> AFC : dépendance/indépendance entre variables qualitatives et donc réduction de dimension/variables
+=> ACM : connaitre/étudier les tuples (ici les pokémons), typologie, profil similaire // étude des liaisons (correspondances) entre les variables
+
+------------------------------------------------------------------------------------------------------------------------------------------------
+
+1. Pokémon.
+
+1.1. Chargement des données et Statistiques Elementaires.
+
+On commence par installer et charger les bibliothèques ade4 et adegraphics.
+```{r}
+install.packages(c("ade4", "adegraphics"))
+library(ade4)
+library(adegraphics)
+```
+
+On charge les données du fichier pokemon.csv et on les associe à un dataframe.
+```{r}
+dataframe <- read.csv("C:/Users/sarah/OneDrive/Bureau/5A/Préparation de données/TP3/pokemon.csv", header = TRUE, sep = ",")
+poke <- as.data.frame(dataframe, row.names = NULL, optional = FALSE)
+head(poke)
+```
+On peut afficher les types des variables (descripteurs) de notre dataframe :
+```{r}
+str(poke)
+```
+On voit que le type Generation est quantitatif (int). On va le transformer en qualitatif (factor).
+```{r}
+poke$Generation <- as.factor(poke$Generation)
+str(poke$Generation)
+```
+On a bien transformé le type de Generation de int à factor. 
+
+On crée un sous-jeu de données composé exclusivement des variables Type.1, Generation et Legendary :
+```{r}
+sub_poke<-poke[,c(3,12,13)]
+head(sub_poke)
+```
+On applique la fonction Summary() au dataframe poke :
+```{r}
+summary(poke)
+```
+-----------------------------------------------------------------------------------------------------------------------------------------------
+1.2. ACM avec ade4.
+
+Pour appliquer la fonction dudi.acm(), il faut que toutes les variables soient des factors. On va donc transformer Type.1 et Legendary de chr à factor puis appliquer la fonction :
+
+```{r}
+sub_poke$Type.1 <- as.factor(sub_poke$Type.1)
+sub_poke$Legendary <- as.factor(sub_poke$Legendary)
+str(sub_poke)
+res_acm_poke<-dudi.acm(sub_poke,scannf=FALSE)
+res_acm_poke
+```
+Sans même afficher quoique ce soit, on voit que l'on a 23 valeurs propres :
+```{r}
+res_acm_poke$eig
+length(res_acm_poke$eig)
+```
+On peut afficher ces valeurs propres comme suit :
+```{r}
+install.packages("factoextra")
+library(ade4)
+library(adegraphics)
+library(factoextra)
+
+get_eig(res_acm_poke)
+fviz_eig(res_acm_poke, choice = c("variance", "eigenvalue"), geom = c("bar", "line"), barfill = "steelblue", barcolor = "steelblue", linecolor = "black", ncp = 23, addlabels = FALSE)
+
+```
+```{r}
+res_acm_poke$eig
+inertia.dudi(res_acm_poke)
+sum(res_acm_poke$eig)
+```
+L’inertie totale est de 7.67 et l’axe 1 en explique 0,47 soit 6.23 %. L’inertie projetée cumulée nous indique que les deux premiers axes expliquent à eux seuls 11.9 % des variations observées dans notre échantillon.
+Pour comprendre la signification des différents axes, il importe d’identifier quelles sont les variables/ modalités qui contribuent le plus à chaque axe.
+
+En gardant les six premiers facteurs, on conserve moins de 50% de l’inertie totale (31.8% ici à Dim.6).
+En pratique ce résultat est relativement courant.
+```{r}
+library(ade4)
+library(adegraphics)
+str(sub_poke) #permet de visualiser les différentes modalités (levels) des variables qualitatives (chr transformé en factor)
+score(res_acm_poke,xax=1)
+
+```
+On veut afficher et interpréter les rapports de corrélation pour le premier et le deuxième
+axe (en utilisant la liste de l’objet res_acm_poke).
+```{r}
+res_acm_poke #on a un certain nombre de variables disponibles (dont eig utilisé précédemment pour l'intertie cumulée)
+res_acm_poke$cr #rapport de corrélation entre les variables et les axes
+
+var <- get_mca(res_acm_poke, "var") #on extrait les résultats pour les modalités des variables
+var
+var$contrib #contributions des modalités des variables sur les axes 1 et 2
+
+```
+On remarque que les variables ayant les plus contribués aux axes 1 et 2 sont, par ordre d'importance : (en regardant les rapports de corrélations res_acm_poke$cr)
+- Axe 1 : Type.1, Legendary, Generation
+- Axe 2 : Type.1, Generation, Legendary
+
+Pour l’interprétation des axes, se concentrer sur les variables les plus structurantes, c’est-à-dire dont le rapport de corrélation est le plus proche de 1.
+
+On peut mieux observer ces corrélations ainsi :
+```{r}
+barplot(res_acm_poke$cr[,1] ,names.arg=row.names(res_acm_poke$cr), las=2, main="Dim. 1", col = "red" )
+barplot(res_acm_poke$cr[,2] ,names.arg=row.names(res_acm_poke$cr), las=2, main="Dim. 2", col = "green" )
+```
+
+
+Lorsqu'on veut plus de détail et voir quelles sont les modalités qui contribuent le plus à chaque axe, on peur regarder un cercle de corrélation ou bien directement nos données brutes avec l'élément "contrib" de "get_mca()".
+```{r}
+s.corcircle(res_acm_poke$co, 1, 2, clabel = 0.2) #acm$co si l’on souhaite représenter les modalités ou acm$li si l’on souhaite représenter les individus.
+```
+On peut aussi utiliser fviz_mca_var de factoextra pour une meilleure visibilité :
+```{r}
+fviz_mca_var(res_acm_poke, repel = TRUE)
+
+```
+on peut également voir la contributions des modalités de cette manière sur les axes 1 et 2:
+```{r}
+fviz_contrib(res_acm_poke, choice = "var", axes = 1)
+fviz_contrib(res_acm_poke, choice = "var", axes = 2)
+```
+Ainsi, les modalités des 3 facteurs qui décrivent au mieux les axes sont :
+- Axe 1 : Legendary.True, Type.1.Dragon et Generation.1
+- Axe 2 : Generation.6, Type.1.Fairy et Type.1.Ghost
+
+
+Maintenant, on crée notre tableau de contingence afin d'y appliquer la fonction assocstats() qui effectue un Khi² afin de mesurer l'indépendance des variables qualitatives (Type.1 et Generation) lorsque Legendary est à False et à True :
+```{r}
+#install.packages("vcd")
+library(vcd)
+
+tab_cont = table(sub_poke)
+tab_cont
+
+assocstats(tab_cont)
+```
+Si on fixe un seuil de significativité à 0.05, on a :
+- H0 : p-value > 0.05 donc les variables sont indépendantes
+- H1 : p-value < 0.05 donc les variables sont dépendantes
+
+Pour Legendary = False, p-value = 1.1698e-07 < 0.05.
+On rejette donc H0 au seuil de 5% et on accepte H1 : les variables Type.1 et Generation sont dépendantes lorsque Legendary = False.
+
+Pour Legendary = True, p-value = 0.35017 > 0.05.
+On rejette donc H1 au seuil de 5% et on accepte H0 : les variables Type.1 et Generation sont indépendantes lorsque Legendary = True.
+
+Donc quand les pokémons sont non légendaires, le type et la génération sont dépendantes.
+
+On veut afficher la matrice de corrélation entre les variables quantitatives Attack, Defense, Sp..Atk, Sp..Def et Speed.
+Pour savoir si on peut bien utiliser Pearson, on devrait regarder si les variables suivent bien une loi normale...
+Le Test de Spearman est plus efficace que Pearson dans ce cas car non-paramétrique, mais Pearson fait l'affaire également.
+Attention, Pearson mesure une corrélation LINEAIRE. Si les variables ne sont pas corrélées linéairement, cela ne veut pas dire qu'elles n'ont pas une relation non linéaire entre elles.
+```{r}
+#install.packages("corrplot")
+library(corrplot)
+
+sous_poke<-poke[,c(7,8,9,10,11)]
+matrice_corr = cor(sous_poke, method= "spearman")
+matrice_corr
+corrplot(matrice_corr, type="upper", order="hclust", tl.col="black", tl.srt=45)
+```
+En regardant la matrice de corrélation et le corrélogramme ci-dessus, on peut conclure que :
+- Defense est fortement corrélé avec Sp..Def puis avec Attack
+- Sp..Def est fortement corrélé avec 
+
+```{r}
+#on récupère le résultat de notre ACM
+res_acm_poke
+
+#représenter les modalités dans le plan factoriel : par défaut, les deux premiers axes sont représentés
+s.label(res_acm_poke$co, clabel = 0.7, boxes = FALSE)
+
+#on peut préciser les axes 3 et 4 par exemple :
+#s.label(res_acm_poke, 3, 4, clabel = 0.7, boxes = FALSE)
+
+#on veut afficher les individus
+s.label(res_acm_poke$li, clabel = 0, pch = 17)
+fviz_mca_ind(res_acm_poke, geom = "point", alpha.ind = .25)
+fviz_mca_ind(res_acm_poke, geom = "point", alpha.ind = .25, habillage = sub_poke$Legendary, addEllipses = TRUE)
+fviz_mca_ind(res_acm_poke, geom = "point", alpha.ind = .25, habillage = sub_poke$Type.1, addEllipses = TRUE)
+```
+On peut ainsi faire des rapprochements : les pokémons légendaires semblent être souvent des types Dragon, les types Fairy et Flying se démarquent du reste, le type Ghost semblent être proche de Generation 6...
+-----------------------------------------------------------------------------------------------------------------------------------------------
+1.3. ACP Mixte.
+
+Grâce à la bibliothèque PCAmixdata, il est possible de réaliser une analyse en composantes principales sur un ensemble d’individus décrits par un mélange de variables quantitatives et qualitatives. PCAmix() effectue une analyse en composantes principales et y associe une analyse des correspondances multiples.
+```{r}
+#install.packages("PCAmixdata")
+library(PCAmixdata)
+
+#on applique la PCAmix
+res_pcamix <- PCAmix(poke[c("Attack", "Defense", "Sp..Atk", "Sp..Def", "Speed")], poke[c("Type.1")])
+res_pcamix
+```
+On peut observer les valeurs propres ainsi que les contribitions aux axes de nos variables quantitatives, de notre variable qualitatrive et ses modalités :
+```{r}
+res_pcamix$eig
+res_pcamix$quanti$contrib
+res_pcamix$quali$contrib
+res_pcamix$levels$contrib
+
+
+barplot(res_pcamix$eig[,3] ,names.arg=row.names(res_pcamix$eig), las=2, main="Intertie cumulée", col = "grey" )
+barplot(res_pcamix$quanti$contrib[,1] ,names.arg=row.names(res_pcamix$quenti$contrib), las=2, main="Contribution des variables quantitatives sur l'axe 1", col = "red" )
+barplot(res_pcamix$quali$contrib[,1] ,names.arg=row.names(res_pcamix$quali$contrib), las=2, main="Contribution de la variable qualitative sur l'axe 1", col = "brown" )
+barplot(res_pcamix$levels$contrib[,1] ,names.arg=row.names(res_pcamix$levels$contrib), las=2, main="Contribution des modalités de la variable qualitative sur l'axe 1", col = "green" )
+```
+On veut les corrélations des variables quantitatives aves les différents axes :
+```{r}
+corr = res_pcamix$quanti.cor
+corr
+
+barplot(corr[,1] ,names.arg=row.names(corr), las=2, main="Dim. 1", col = "red" )
+barplot(corr[,2] ,names.arg=row.names(corr), las=2, main="Dim. 2", col = "green" )
+barplot(corr[,3] ,names.arg=row.names(corr), las=2, main="Dim. 3", col = "blue" )
+barplot(corr[,4] ,names.arg=row.names(corr), las=2, main="Dim. 4", col = "pink" )
+```
+On souhaite maintenant afficher les coordonnées de la variable qualitative :
+```{r}
+res_pcamix$categ.coord
+```
+-----------------------------------------------------------------------------------------------------------------------------------------------
+
+On refait une ACP mixte en remplaçant Type.1 par Name :
+```{r}
+#install.packages("PCAmixdata")
+library(PCAmixdata)
+
+#on applique la PCAmix
+pcamix <- PCAmix(poke[c("Attack", "Defense", "Sp..Atk", "Sp..Def", "Speed")], poke[c("Name")])
+pcamix
+
+head(pcamix$eig)
+
+#on veut observer l'inertie cumulée des axes afin de savoir combien de dimensions conserver : il y a trop de modalités pour Name donc mauvaise idée !
+barplot(pcamix$eig[,3] ,names.arg=row.names(pcamix$eig), las=2, main="Intertie cumulée", col = "grey" )
+
+#on veut regarder la contribution de nos variables quantitatives aux axes 1 et 2 
+pcamix$quanti$contrib
+barplot(pcamix$quanti$contrib[,1] ,names.arg=row.names(pcamix$quenti$contrib), las=2, main="Contribution des variables quantitatives sur l'axe 1", col = "red" )
+barplot(pcamix$quanti$contrib[,2] ,names.arg=row.names(pcamix$quenti$contrib), las=2, main="Contribution des variables quantitatives sur l'axe 2", col = "red" )
+
+#on veut regarder la contribution de notre variable qualiaux axes 1 et 2 
+pcamix$quali$contrib
+barplot(pcamix$quali$contrib[,1] ,names.arg=row.names(pcamix$quali$contrib), las=2, main="Contribution de la variable qualitative sur l'axe 1", col = "brown" )
+
+```
+

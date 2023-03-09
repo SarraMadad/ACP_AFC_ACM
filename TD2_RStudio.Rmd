@@ -1,0 +1,69 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+plot(cars)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.library(dplyr)
+
+```{r}
+library(dplyr)
+library(readr)
+
+dataframe <- read.csv("C:/Users/sarah/OneDrive/Bureau/5A/Préparation de données/TP2/President.csv", header = TRUE, sep = ";")
+president <- as.data.frame(dataframe, row.names = NULL, optional = FALSE)
+head(president)
+president
+
+#on passe le nom des départements en index
+df <- read.csv2("C:/Users/sarah/OneDrive/Bureau/5A/Préparation de données/TP2/President.csv", row.name=2)
+president_df1 <- df[,c(-1, -12)] #on supprime la 1ère ligne et la dernière colonne (id et total)
+president_df <- president_df1[-108,] #on supprime la dernière ligne
+head(president_df)
+dim(president_df)
+
+
+#test du khi²
+
+resu.chi2 = chisq.test(president_df[1:107,1:10])
+resu.chi2
+
+install.packages(c("FactoMineR", "factoextra"))
+library(FactoMineR)
+res_afc = CA(president_df, row.sup=NULL, col.sup=NULL)
+res_afc
+
+res_afc$eig
+
+barplot(res_afc$eig[,2], names=paste("Dim",1:length(res_afc$eig[,2])),
+main="Inertie (en %) des axes factoriels", col="pink", border="white")
+
+sqrt((resu.chi2$statistic/sum(president_df))/(10-1))
+sqrt((resu.chi2$statistic)/(president[108,13]*9))
+
+sum(res_afc$eig[,1])/9
+
+barplot(res_afc$eig[,1], names=paste("Dim",1:length(res_afc$eig[,1])),
+main="Inertie des axes factoriels", col="green", border="white")
+abline(h=sum(res_afc$eig[,1])/9, lty =2 , col="red" )
+
+plot.CA(res_afc, cex=0.7 , invisible = "col" )
+plot.CA(res_afc, cex=0.7 , invisible = "row" )
+
+plot.CA(res_afc, cex=0.7)
+
+sort(res_afc$row$contrib[,1], T)
+sort(res_afc$row$contrib[,2], T)
+
+
